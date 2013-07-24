@@ -76,11 +76,11 @@ deferredApp = ->
 
   app.get '/clear', (req, res) ->
       jobs.clear ->
-          res.redirect "#{@_locals.baseUrl()}/jobs"
+          res.redirect "/jobs"
 
   app.get '/add', (req, res) ->
       jobs.addJob ->
-          res.redirect "#{@_locals.baseUrl()}/jobs"
+          res.redirect "/jobs"
 
   app.get '/ping', (req, res) ->
       jobs.getLast (job) ->
@@ -96,7 +96,7 @@ deferredApp = ->
               console.log job
               res.json job
           else
-              res.redirect "#{@_locals.baseUrl()}/"
+              res.redirect "/"
 
 if global.currentNamespace != "/"
   app.namespace global.currentNamespace, deferredApp

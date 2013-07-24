@@ -1,100 +1,105 @@
-mongo = require 'mongodb'
+db = require 'benchdb/api'
+Type = require 'benchdb'
 path = require 'path'
 dbName = path.basename(process.cwd()).replace(/\./, "-")
+_ = require 'underscore'
+a = require 'async'
 
-db = new mongo.Db "concrete_#{ dbName }", new mongo.Server('localhost', mongo.Connection.DEFAULT_PORT, {auto_reconnect: true}), {}
-db.open (error) ->
-    if error
-      console.log 'There was an error creating a connection with the Mongo database. Please check that MongoDB is properly installed and running.'.red
-      process.exit 1
-ObjectID = mongo.BSONPure.ObjectID
+concreteDb = new db '127.0.0.1', 5984, "concrete_#{ dbName }"
+
+jobType = new Type concreteDb, 'job'
 
 jobs = module.exports =
-    current: null
-    addJob: (next)->
-        db.collection 'jobs', (error, collection) ->
-            job =
-                addedTime: new Date().getTime()
-                log: ''
-                running: no
-                finished: no
-            collection.insert job
-            next(job) if next?
+  current: null
+  addJob: (next) ->
+    jobType.instance true, (error, instance) ->
+      _(instance.data).extend
+        addedTime: new Date().getTime()
+        log: ''
+        running: false
+        finished: false
+      instance.save ->
+        next(instance.data) if next?
 
-    getQueued: (next)->
-        getJobs {running: no}, next
+  getQueued: (next) ->
+    getJobs running: false, next
 
-    getRunning: (next)->
-        getJobs {running: yes}, next
+  getRunning: (next) ->
+    getJobs running: true, next
 
-    getAll: (next)->
-        getJobs null, next
+  getAll: (cb) ->
+    jobType.filterByFields include_docs: true, (err, res) ->
+      cb (job.data for job in res.instances)
 
-    getLast: (next)->
-        db.collection 'jobs', (error, collection) ->
-            collection.find().sort({$natural:-1}).limit(1).toArray (error, jobs) ->
-                if jobs.length > 0
-                    next jobs[0]
-                else
-                    next()
-            
-
-    get: (id, next) ->
-        db.collection 'jobs', (error, collection) ->
-            collection.findOne {_id: new ObjectID id}, (error, job) ->
-                if job?
-                    next job
-                else
-                    next "No job found with the id '#{id}'"
-
-    clear: (next)->
-        db.dropCollection 'jobs', (error) ->
-            next() if next?
-
-    getLog: (id, next)->
-        db.collection 'jobs', (error, collection) ->
-            collection.findOne {_id: new ObjectID id}, (error, job) ->
-                if job?
-                    next job.log
-                else
-                    next "No job found with the id '#{id}'"
-
-    updateLog: (id, string, next)->
-        db.collection 'jobs', (error, collection) ->
-            collection.findOne {_id: new ObjectID id}, (error, job) ->
-                console.log "update log for job #{job}, #{string}"
-                return no if not job?
-                job.log += "#{string} <br />"
-                collection.save(job)
-                next() if next?
-
-    currentComplete: (success, next)->
-        db.collection 'jobs', (error, collection) ->
-            collection.findOne {_id: new ObjectID jobs.current}, (error, job) ->
-                return no if not job?
-                job.running = no
-                job.finished = yes
-                job.failed = not success
-                job.finishedTime = new Date().getTime()
-                jobs.current = null
-                collection.save(job)
-                next()
-
-    next: (next)->
-        db.collection 'jobs', (error, collection) ->
-            collection.findOne {running: no, finished: no}, (error, job) ->
-                return no if not job?
-                job.running = yes
-                job.startedTime = new Date().getTime()
-                jobs.current = job._id.toString()
-                collection.save(job)
-                next()
-
-getJobs = (filter, next)->
-    db.collection 'jobs', (error, collection) ->
-        if filter?
-            collection.find(filter).sort({addedTime: 1}).toArray (error, results) ->
-                next results
+  getLast: (next) ->
+    jobType.filterByField {
+      sort: 'addedTime'
+      descending: true
+      limit: 1
+      include_docs: true }, (error, res) ->
+        collection = res.instances
+        if collection.length > 0
+          next collection[0].data
         else
-            collection.find().sort({addedTime: 1}).toArray (error, results) ->
-                next results
+          next()
+
+  get: (id, next) ->
+    concreteDb.retrieve id, (error, job) ->
+      if error?
+        next "No job found with the id '#{id}'"
+      else
+        next job
+
+  clear: (cb) ->
+    jobType.all (err, res) ->
+      a.each res.instances, ((one, next) -> concreteDb.remove one.data, next), ->
+        cb res.instances
+
+  getLog: (id, next) ->
+    concreteDb.retrieve id, (error, job) ->
+      if error?
+        next "No job found with the id '#{id}'"
+      else
+        next job.log
+
+  updateLog: (id, string, next) ->
+    concreteDb.retrieve id, (error, job) ->
+      if error?
+        return false
+      else
+        job.log += "#{string} <br />"
+        concreteDb.modify job, ->
+          next() if next?
+
+  currentComplete: (success, next) ->
+    concreteDb.retrieve @current, (error, job) ->
+      if error?
+        return false
+      else
+        job.running = false
+        job.finished = true
+        job.failed = not success
+        job.finishedTime = new Date().getTime()
+        jobs.current = null
+        concreteDb.modify job, ->
+          next() if next?
+
+  next: (next) ->
+    jobType.filterByFields {sort: ['addedTime'], limit: 1},
+      {running: no, finished: no}, (error, res) ->
+        job = res.instances[0]
+        return false if not job?
+        job.data.running = true
+        job.data.startedTime = new Date().getTime()
+        jobs.current = job.id
+        job.save -> next()
+
+getJobs = (filter, next) ->
+  if filter?
+    jobType.filterByFields {sort: ['addedTime'], include_docs: true}, filter,
+      (error, res) ->
+        next (job.data for job in res.instances)
+  else
+    jobType.filterByFields {sort: ['addedTime'], include_docs: true},
+      (error, res) ->
+        next (job.data for job in res.instances)

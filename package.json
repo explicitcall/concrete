@@ -1,9 +1,9 @@
 {
-  "name": "concrete",
-  "version": "0.0.3",
+  "name": "concrete-couchdb",
+  "version": "0.0.3-1",
   "description": "A minimalistic Continuous Integration server",
   "author": "Ryan Kee <me@ryankee.com> (http://ryankee.com)",
-  "preferGlobal" : true,
+  "preferGlobal": true,
   "keywords": [
     "coffeescript",
     "continuous integration",
@@ -13,9 +13,9 @@
   "bin": {
     "concrete": "./bin/concrete"
   },
-  "directories" : {
-    "bin" : "./bin",
-    "lib" : "./lib"
+  "directories": {
+    "bin": "./bin",
+    "lib": "./lib"
   },
   "repository": {
     "type": "git",
@@ -28,10 +28,22 @@
     "express": "2.x",
     "stylus": "0.x",
     "coffeekup": "0.3.x",
-    "mongodb": "0.9.x",
-    "express-namespace": "*"
+    "benchdb": "~0.2.3",
+    "express-namespace": "*",
+    "underscore": "~1.5.1",
+    "async": "~0.2.9"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-contrib-copy": "~0.4.0",
+    "grunt-contrib-coffee": "~0.7.0",
+    "grunt-contrib-clean": "0.4.0",
+    "grunt-nodemon": "~0.0.2",
+    "matchdep": "~0.1.1",
+    "grunt-contrib-stylus": "~0.6.0",
+    "grunt-contrib-watch": "~0.5.1"
   },
   "engines": {
-    "node": ">=0.4.9"
+    "node": ">=0.10"
   }
 }

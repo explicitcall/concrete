@@ -1,5 +1,5 @@
 process.title = 'Concrete'
-version = '0.0.3'
+version = '0.0.3-1'
 
 # cli colors
 colors = require 'colors'
@@ -49,13 +49,22 @@ if argv._.length == 0
 
 # start server command
 startServer = ->
-    # start the server
-    global.currentNamespace = argv.d
-    server = require '../lib/server'
-    server.listen argv.p, argv.h
-    console.log "Concrete listening on port %d with host %s in directory %s".green,
+  db = require 'benchdb/api'
+  path = require 'path'
+  dbName = path.basename(process.cwd()).replace /\./, "-"
+  fullDbName = "concrete_#{ dbName }"
+  concreteDb = new db '127.0.0.1', 5984, fullDbName
+  concreteDb.checkExists (err) ->
+    if err?
+      console.log "Error while creating a couchdb database named '#{fullDbName}'"
+    else
+      # start the server
+      global.currentNamespace = argv.d
+      server = require './server'
+      server.listen argv.p, argv.h
+      console.log "Concrete listening on port %d with host %s in directory %s".green,
         argv.p, argv.h, argv.d
 
 # check the path and start the git request
-git = require '../lib/git'
+git = require './git'
 git.init(argv._[0], startServer)
