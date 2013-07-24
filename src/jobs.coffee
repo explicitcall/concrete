@@ -19,7 +19,7 @@ jobs = module.exports =
         running: false
         finished: false
       instance.save ->
-        next(instance.data) if next?
+        next(instance.data)
 
   getQueued: (next) ->
     getJobs running: false, next
@@ -68,8 +68,8 @@ jobs = module.exports =
         return false
       else
         job.log += "#{string} <br />"
-        concreteDb.modify job, ->
-          next() if next?
+        concreteDb.modify job, (err, res) ->
+          next()
 
   currentComplete: (success, next) ->
     concreteDb.retrieve @current, (error, job) ->
@@ -82,7 +82,7 @@ jobs = module.exports =
         job.finishedTime = new Date().getTime()
         jobs.current = null
         concreteDb.modify job, ->
-          next() if next?
+          next()
 
   next: (next) ->
     jobType.filterByFields {sort: ['addedTime'], limit: 1},

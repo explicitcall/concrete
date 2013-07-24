@@ -7,7 +7,7 @@ html ->
         link rel: 'stylesheet', href: "#{@baseUrl()}stylesheets/app.css"
         script src: "#{@baseUrl()}js/jquery-1.6.2.min.js"
         script src: "#{@baseUrl()}js/coffeekup.js"
-        script src: "#{@baseUrl()}concrete.js"
+        script src: "#{@baseUrl()}js/concrete.js"
         script ->
           "window.baseUrl = '#{@baseUrl()}';"
     body ->

@@ -4,7 +4,7 @@ git = require './git'
 server = require './server'
 exec = require('child_process').exec
 jobs = require './jobs'
-
+fs = require 'fs'
 
 parseSequence = (input) ->
   length = input.length
@@ -52,16 +52,24 @@ runNextJob = ->
                     runNextJob()
 
 runTask = (next)->
-    jobs.updateLog jobs.current, "Executing '#{git.runner}'"
-    exec git.runner,{maxBuffer: 1024*1024}, (error, stdout, stderr)=>
+    jobs.updateLog jobs.current, "Executing '#{git.runner}'", ->
+      exec git.runner,{maxBuffer: 1024*1024}, (error, stdout, stderr)=>
         if error?
-            updateLog error, true, ->
-                updateLog stdout, true, ->
-                    updateLog stderr, true, ->
+          updateLog error, true, ->
+              updateLog stdout, true, ->
+                  updateLog stderr, true, ->
+                    fs.exists git.failure, (exists) ->
+                      if exists
                         runFile git.failure, next, no
+                      else
+                        next no
         else
-            updateLog stdout, true, ->
+          updateLog stdout, false, ->
+            fs.exists git.success, (exists) ->
+              if exists
                 runFile git.success, next, yes
+              else
+                next yes
 
 runFile = (file, next, args=null) ->
     jobs.updateLog jobs.current, "Executing #{file}", ->
@@ -77,11 +85,11 @@ runFile = (file, next, args=null) ->
                     next(args)
 
 updateLog = (buffer, isError, done) ->
-    content = html tokenize buffer.toString()
-    if isError
-        errorClass = ' error'
-        console.log "#{content}".red
-    else
-        errorClass = ''
-        console.log content
-    jobs.updateLog jobs.current, "<span class='output#{errorClass}'>#{content}</span>", done
+  content = html tokenize buffer.toString()
+  if isError
+      errorClass = ' error'
+      console.log "#{content}".red
+  else
+      errorClass = ''
+      console.log content
+  jobs.updateLog jobs.current, "<span class='output#{errorClass}'>#{content}</span>", done
